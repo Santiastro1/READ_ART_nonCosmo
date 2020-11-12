@@ -122,7 +122,7 @@ class ART_INPUT:
             Md = np.fromfile(fh, count=1, dtype='<f4')
             extras2 = np.fromfile(fh, count=6, dtype='<f4')
             boxsize = np.fromfile(fh, count=1, dtype='<f4')
-        n = int(nspecs)
+        n = nspecs
         particle_header_vals = {}
         tmp = np.array([headerstr, aexpn, aexp0, amplt, astep, istep,
             partw, tintg, ekin, ekin1, ekin2, au0, aeu0, nrowc, ngridc,
@@ -155,6 +155,7 @@ class ART_INPUT:
         self.parameters['wspecies'] = wspecies[:n]
         self.parameters['lspecies'] = lspecies[:n]
         self.parameters['ng'] = self.parameters['Ngridc']
+        self.parameters['nrow'] = nrowc
         self.parameters['ncell0'] = self.parameters['ng']**3
         self.parameters['boxh'] = self.parameters['boxsize']
         self.parameters['total_particles'] = ls_nonzero
@@ -188,7 +189,6 @@ class ART_INPUT:
         self.ls = self.parameters["lspecies"]
         self.file_particle = self._file_particle_data
         self.Nrow = self.parameters["Nrow"]
-        self.Ngrid = self.parameters["ng"]
  def _get_field(self,  field):
         tr = {}
         ftype, fname = field
@@ -198,7 +198,7 @@ class ART_INPUT:
         npa = idxb - idxa
         sizes = np.diff(np.concatenate(([0], self.ls)))
         rp = lambda ax: read_particles(
-            self._file_particle_data, self.Ngrid, idxa=idxa,
+            self._file_particle_data, self.Nrow, idxa=idxa,
             idxb=idxb, fields=ax)
         for i, ax in enumerate('xyz'):
             if fname.startswith("particle_position_%s" % ax):
@@ -248,10 +248,10 @@ class ART_INPUT:
             for field in field_list:
                     data = self._get_field((ptype, field))
                     yield (ptype, field), data[None]
-def read_particles(file, Ngrid, idxa, idxb, fields):
+def read_particles(file, Nrow, idxa, idxb, fields):
     words = 6  # words (reals) per particle: x,y,z,vx,vy,vz
     real_size = 4  # for file_particle_data; not always true?
-    np_per_page = Ngrid**2  # defined in ART a_setup.h, # of particles/page
+    np_per_page = Nrow**2  # defined in ART a_setup.h, # of particles/page
     num_pages = os.path.getsize(file)/(real_size*words*np_per_page)
     fh = open(file, 'r')
     skip, count = idxa, idxb - idxa
@@ -304,7 +304,7 @@ def quad(fintegrand, xmin, xmax, n=1e4):
     val = np.trapz(integrand_arr, dx=np.diff(spacings))
     return val
 
-def get_ranges(skip, count, field, words=6, real_size=4, np_per_page=256**2,
+def get_ranges(skip, count, field, words=6, real_size=4, np_per_page=128**2,
                   num_pages=1):
     #translate every particle index into a file position ranges
     ranges = []
@@ -384,7 +384,6 @@ def read_ART(path,filename,nstars):
        dm9.append(i[1][0,:])
      if nspec>10:
        print('TOO MANY PARTICLE SPECIES!!!')
-    print('After appending')
     mass=[]
     x=[]
     y=[]
@@ -497,3 +496,9 @@ def read_ART(path,filename,nstars):
     y[0]=(y[0]-ymean)*ART_IO.scaleC
     z[0]=(z[0]-zmean)*ART_IO.scaleC
     return mass,x,y,z,vx,vy,vz,Id
+#    print(mass[0],mass[1],mass[2],mass[3],mass[4],mass[5],mass[6])
+#    print(len(mass[0]),len(mass[1]),len(mass[2]),len(mass[3]),len(mass[4]),len(mass[5]),len(mass[6]),ART_IO.ls)
+##    print(np.min(mass[0]),np.min(mass[1]),np.min(mass[2]),np.min(mass[4]))
+##    print(np.max(x[7])*1000,np.max(y[7])*1000,np.max(z[7])*1000,ART_IO.parameters['Rs']*10.)
+##    print(np.max(x[0])*1000,np.max(y[0])*1000,np.max(z[0])*1000,13.51)
+##    print(np.min(np.sqrt(vx[0]*vx[0]+vy[0]*vy[0])),np.max(np.sqrt(vx[0]*vx[0]+vy[0]*vy[0])),np.min(vz[0]),np.max(vz[0]))
